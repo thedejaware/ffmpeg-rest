@@ -4,12 +4,18 @@ WORKDIR /app
 
 FROM base AS deps
 
+ENV HUSKY=0
+
 COPY package*.json ./
-RUN npm ci --only=production
+COPY .husky/install.mjs .husky/install.mjs
+RUN npm ci --omit=dev
 
 FROM base AS build
 
+ENV HUSKY=0
+
 COPY package*.json ./
+COPY .husky/install.mjs .husky/install.mjs
 RUN npm ci
 
 COPY . .
