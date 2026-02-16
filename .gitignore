@@ -33,7 +33,6 @@ lerna-debug.log*
 # misc
 .DS_Store
 .claude/
-CLAUDE.md
 
 # test
 test-outputs/
