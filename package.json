@@ -1,5 +1,7 @@
 {
   "name": "ffmpeg-rest",
+  "version": "0.0.0",
+  "private": true,
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
@@ -35,7 +37,10 @@
     "zod": "^4.1.11"
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.4.1",
+    "@commitlint/config-conventional": "^20.4.1",
     "@eslint/js": "^9.37.0",
+    "@semantic-release/github": "^12.0.6",
     "@testcontainers/localstack": "^11.7.1",
     "@testcontainers/redis": "^11.7.1",
     "@types/archiver": "^6.0.3",
@@ -44,14 +49,15 @@
     "@vitest/coverage-v8": "^3.2.4",
     "esbuild": "0.25.10",
     "eslint": "^9.37.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.5",
     "prettier": "3.6.2",
+    "semantic-release": "^25.0.3",
     "testcontainers": "^11.7.1",
     "tsx": "^4.7.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.45.0",
-    "vitest": "^3.2.4",
-    "husky": "^9.1.7",
-    "lint-staged": "^16.1.5"
+    "vitest": "^3.2.4"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
