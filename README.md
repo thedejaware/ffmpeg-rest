@@ -18,8 +18,23 @@ Convert and process media files through simple HTTP endpoints:
 
 - **Video**: Convert any video to MP4, convert to animated GIF, extract audio tracks (mono/stereo), extract frames at custom FPS (compressed as ZIP/GZIP)
 - **Audio**: Convert any audio to MP3 or WAV
-- **Image**: Convert any image format to JPG
+- **Image**: Convert any image format to JPG, resize images while preserving format
 - **Media Info**: Probe any media file for metadata and stream information
+
+## Architecture
+
+The service runs as two separate Node.js processes connected through Redis:
+
+1. **API Server** (`src/server.ts`): Hono HTTP API that accepts uploads, writes temp files, enqueues BullMQ jobs, waits for completion, and returns the result.
+2. **Worker** (`src/worker.ts`): BullMQ consumer that executes FFmpeg/FFprobe jobs and returns job results.
+
+From the client perspective, requests are synchronous even though processing is queued internally.
+
+```text
+Client -> Hono Server -> Redis/BullMQ -> Worker -> FFmpeg/FFprobe
+           ^                                  |
+           +----------- wait for result ------+
+```
 
 ## Storage Modes
 
@@ -67,8 +82,8 @@ This API is built with documentation-first approach using **Hono Zod OpenAPI** a
 
 - **Type-Safe Schemas**: All endpoints use Zod schemas for validation, ensuring type safety and automatic OpenAPI spec generation
 - **Interactive API Reference**: Beautiful, interactive documentation powered by Scalar at `/reference`
-- **OpenAPI 3.1 Spec**: Complete machine-readable API specification at `/doc`
-- **LLM-Friendly Docs**: Markdown documentation optimized for AI assistants at `/llms.txt` (following [llmstxt.org](https://llmstxt.org/) standard)
+- **OpenAPI Spec (`/doc`)**: Complete machine-readable API specification (served as OpenAPI 3.0)
+- **LLM-Friendly Docs (`/llms.txt`)**: Markdown documentation optimized for AI assistants (generated from OpenAPI 3.1, following [llmstxt.org](https://llmstxt.org/) standard)
 
 Every endpoint is fully documented with request/response schemas, validation rules, and example payloads. No manual documentation maintenance required.
 
@@ -76,8 +91,8 @@ Every endpoint is fully documented with request/response schemas, validation rul
 
 ### Prerequisites
 
-- **Node.js** 20+ and npm
-- **FFmpeg** installed and available in PATH
+- **Node.js** 22+ and npm
+- **FFmpeg** and **FFprobe** installed and available in PATH
 - **Redis** server running
 
 ### Setup
@@ -92,7 +107,7 @@ Every endpoint is fully documented with request/response schemas, validation rul
 2. **Install dependencies**
 
    ```bash
-   npm install
+   npm ci
    ```
 
 3. **Start Redis** (using Docker)
