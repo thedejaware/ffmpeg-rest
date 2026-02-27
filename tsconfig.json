@@ -19,15 +19,12 @@
     "noFallthroughCasesInSwitch": true,
     "noPropertyAccessFromIndexSignature": true,
     "resolveJsonModule": true,
-    "types": ["node"],
-    "jsx": "react-jsx",
-    "jsxImportSource": "hono/jsx",
-    "outDir": "./dist",
-    "baseUrl": ".",
-    "paths": {
-      "~/*": ["./src/*"]
-    }
+    "types": ["node"]
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "files": [],
+  "references": [
+    { "path": "./packages/shared" },
+    { "path": "./apps/server" },
+    { "path": "./apps/worker" }
+  ]
 }
