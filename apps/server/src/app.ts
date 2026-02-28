@@ -13,29 +13,6 @@ import { registerMediaRoutes } from '~/components/media/controller';
 export function createApp() {
   const app = new OpenAPIHono();
 
-  if (env.AUTH_TOKEN) {
-    logger.info('🔒 Bearer authentication enabled');
-    const expectedToken = env.AUTH_TOKEN;
-
-    app.use(
-      '/*',
-      bearerAuth({
-        token: expectedToken,
-        noAuthenticationHeader: { message: { message: 'Unauthorized' } },
-        invalidAuthenticationHeader: { message: { message: 'Unauthorized' } },
-        invalidToken: { message: { message: 'Unauthorized' } }
-      })
-    );
-  } else {
-    logger.warn('⚠️  Authentication disabled - set AUTH_TOKEN to enable');
-  }
-
-  registerApiRoutes(app);
-  registerAudioRoutes(app);
-  registerVideoRoutes(app);
-  registerImageRoutes(app);
-  registerMediaRoutes(app);
-
   app.doc('/doc', {
     openapi: '3.0.0',
     info: {
@@ -85,6 +62,29 @@ export function createApp() {
     const markdown = await createMarkdownFromOpenApi(JSON.stringify(openApiDoc));
     return c.text(markdown);
   });
+
+  if (env.AUTH_TOKEN) {
+    logger.info('🔒 Bearer authentication enabled');
+    const expectedToken = env.AUTH_TOKEN;
+
+    app.use(
+      '/*',
+      bearerAuth({
+        token: expectedToken,
+        noAuthenticationHeader: { message: { message: 'Unauthorized' } },
+        invalidAuthenticationHeader: { message: { message: 'Unauthorized' } },
+        invalidToken: { message: { message: 'Unauthorized' } }
+      })
+    );
+  } else {
+    logger.warn('⚠️  Authentication disabled - set AUTH_TOKEN to enable');
+  }
+
+  registerApiRoutes(app);
+  registerAudioRoutes(app);
+  registerVideoRoutes(app);
+  registerImageRoutes(app);
+  registerMediaRoutes(app);
 
   return app;
 }
