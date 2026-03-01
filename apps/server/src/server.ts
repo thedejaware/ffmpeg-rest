@@ -3,8 +3,13 @@ import { createApp } from '~/app';
 import { env } from '~/config/env';
 import { checkRedisHealth } from '~/config/redis';
 import { logger } from '~/config/logger';
+import { initCacheDir } from '~/utils/cache';
 
 await checkRedisHealth();
+
+if (env.CACHE_ENABLED) {
+  await initCacheDir();
+}
 
 const app = createApp();
 
