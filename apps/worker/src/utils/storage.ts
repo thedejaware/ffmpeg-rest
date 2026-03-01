@@ -50,7 +50,7 @@ async function getCachedUpload(hash: string): Promise<UploadResult | null> {
     }
 
     const data = CachedUploadSchema.parse(JSON.parse(cached));
-    logger.info({ hash, url: data.url }, 'Cache hit for file upload');
+    logger.info({ hash, cacheKey, url: data.url }, 'S3 dedup cache hit');
 
     return {
       url: data.url,
