@@ -21,30 +21,6 @@ Convert and process media files through simple HTTP endpoints:
 - **Image**: Convert any image format to JPG, resize images while preserving format
 - **Media Info**: Probe any media file for metadata and stream information
 
-## Architecture
-
-The service runs as two separate Node.js processes connected through Redis:
-
-1. **API Server** (`apps/server/src/server.ts`): Hono HTTP API that accepts uploads, writes temp files, enqueues BullMQ jobs, waits for completion, and returns the result.
-2. **Worker** (`apps/worker/src/worker.ts`): BullMQ consumer that executes FFmpeg/FFprobe jobs and returns job results.
-
-From the client perspective, requests are synchronous even though processing is queued internally.
-
-```text
-Client -> Hono Server -> Redis/BullMQ -> Worker -> FFmpeg/FFprobe
-           ^                                  |
-           +----------- wait for result ------+
-```
-
-### Monorepo Layout
-
-This project uses npm workspaces:
-
-- `apps/server` - HTTP API server
-- `apps/worker` - BullMQ worker
-- `apps/web` - Vite + TanStack Router frontend scaffold
-- `packages/shared` - shared queue contracts/schemas and pure utilities
-
 ## Storage Modes
 
 The API supports two storage modes configured via the `STORAGE_MODE` environment variable:
