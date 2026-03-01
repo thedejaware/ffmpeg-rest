@@ -70,10 +70,10 @@ Stateless mode can optionally cache binary conversion outputs using `cacache` to
 **Configuration**:
 
 ```bash
-CACHE_ENABLED=false             # Enable/disable stateless cache
-CACHE_DIR=/tmp/ffmpeg-rest/cache
-CACHE_TTL_HOURS=2160            # 90 days
-CACHE_MAX_SIZE_MB=1024          # 1 GiB
+CACHE_ENABLED=false             # Enable/disable stateless binary cache
+CACHE_DIR=/tmp/ffmpeg-rest/cache # Cache directory (defaults to <TEMP_DIR>/cache)
+CACHE_TTL_HOURS=2160            # Entry TTL in hours (90 days)
+CACHE_MAX_SIZE_MB=1024          # Max cache size on disk in MiB (1 GiB)
 ```
 
 ### S3 Mode
