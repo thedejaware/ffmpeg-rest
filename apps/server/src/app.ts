@@ -13,6 +13,8 @@ import { registerMediaRoutes } from '~/components/media/controller';
 export function createApp() {
   const app = new OpenAPIHono();
 
+  registerApiRoutes(app);
+
   app.doc('/doc', {
     openapi: '3.0.0',
     info: {
@@ -80,7 +82,6 @@ export function createApp() {
     logger.warn('⚠️  Authentication disabled - set AUTH_TOKEN to enable');
   }
 
-  registerApiRoutes(app);
   registerAudioRoutes(app);
   registerVideoRoutes(app);
   registerImageRoutes(app);
