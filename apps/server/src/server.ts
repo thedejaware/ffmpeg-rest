@@ -21,6 +21,16 @@ serve(
   (info) => {
     logger.info('🚀 FFmpeg REST API started');
     logger.info({ port: info.port, storageMode: env.STORAGE_MODE }, 'Server info');
+    if (env.CACHE_ENABLED) {
+      logger.info(
+        {
+          cacheDir: env.CACHE_DIR,
+          cacheTtlHours: env.CACHE_TTL_HOURS,
+          cacheMaxSizeMb: env.CACHE_MAX_SIZE_MB
+        },
+        'Stateless binary cache enabled'
+      );
+    }
     logger.info(`📚 OpenAPI Spec: http://localhost:${info.port}/doc`);
     logger.info(`📖 API Reference: http://localhost:${info.port}/reference`);
     logger.info(`🤖 LLM Documentation: http://localhost:${info.port}/llms.txt`);

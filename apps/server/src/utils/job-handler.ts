@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { mkdir, writeFile, readFile, rm } from 'fs/promises';
 import path from 'path';
 import { env } from '~/config/env';
+import { logger } from '~/config/logger';
 import { addJob, queueEvents, validateJobResult, JobTypeName } from '~/queue';
 import { computeCacheKey, getCachedOutput, putCachedOutput, isCacheEligibleJobData } from '~/utils/cache';
 
@@ -73,6 +74,14 @@ export async function processMediaJob(options: ProcessJobOptions): Promise<Proce
     if (cacheKey) {
       const cached = await getCachedOutput(cacheKey);
       if (cached) {
+        logger.info(
+          {
+            jobType,
+            outputExtension,
+            cacheKey
+          },
+          'Stateless binary cache hit'
+        );
         return {
           success: true,
           outputBuffer: cached.outputBuffer,
