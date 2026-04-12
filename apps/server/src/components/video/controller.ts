@@ -12,6 +12,7 @@ import {
 import { videoToGifRoute, videoToGifUrlRoute } from './gif-schemas';
 import { JobType } from '~/queue';
 import { env } from '~/config/env';
+import { logger } from '~/config/logger';
 import { processMediaJob, getOutputFilename } from '~/utils/job-handler';
 import { readdirSync, readFileSync } from 'fs';
 import path from 'path';
@@ -357,11 +358,14 @@ export function registerVideoRoutes(app: OpenAPIHono) {
   });
 
   app.openapi(processVideoRoute, async (c) => {
+    const startTime = Date.now();
     try {
       const { file } = c.req.valid('form');
       const query = c.req.valid('query');
       const fps = query.fps || 2;
       const duration = query.duration;
+
+      logger.info({ fileName: file.name, fileSize: file.size, fps, duration }, '[/video/process] Request received');
 
       // Write input file once, shared by both jobs
       const jobId = randomUUID();
@@ -423,8 +427,17 @@ export function registerVideoRoutes(app: OpenAPIHono) {
       await rm(jobDir, { recursive: true, force: true });
 
       if (!framesResult.success && !audioResult.success) {
+        logger.error(
+          { audioError: audioResult.error, framesError: framesResult.error, elapsed: Date.now() - startTime },
+          '[/video/process] Both extractions failed'
+        );
         return c.json({ error: audioResult.error || framesResult.error || 'Processing failed' }, 400);
       }
+
+      logger.info(
+        { hasAudio, frameCount: frames.length, audioSize: audioBase64.length, elapsed: Date.now() - startTime },
+        '[/video/process] Response sent'
+      );
 
       return c.json(
         {
@@ -437,6 +450,7 @@ export function registerVideoRoutes(app: OpenAPIHono) {
       );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error({ error: errorMessage, elapsed: Date.now() - startTime }, '[/video/process] Request failed');
       return c.json({ error: 'Processing failed', message: errorMessage }, 500);
     }
   });
