@@ -15,6 +15,7 @@ export const VideoExtractAudioJobDataSchema = z.object({
   inputPath: z.string(),
   outputPath: z.string(),
   mono: z.boolean().default(true),
+  duration: z.number().positive().optional(),
   uploadToS3: z.boolean().default(false)
 });
 
@@ -25,6 +26,7 @@ export const VideoExtractFramesJobDataSchema = z.object({
   format: z.enum(['png', 'jpg']).default('png'),
   quality: z.number().min(1).max(31).optional(),
   compress: z.enum(['zip', 'gzip']).optional(),
+  duration: z.number().positive().optional(),
   uploadToS3: z.boolean().default(false)
 });
 

@@ -6,12 +6,18 @@ import {
   extractAudioUrlRoute,
   extractFramesRoute,
   extractFramesUrlRoute,
-  downloadFrameRoute
+  downloadFrameRoute,
+  processVideoRoute
 } from './schemas';
 import { videoToGifRoute, videoToGifUrlRoute } from './gif-schemas';
 import { JobType } from '~/queue';
 import { env } from '~/config/env';
 import { processMediaJob, getOutputFilename } from '~/utils/job-handler';
+import { readdirSync, readFileSync } from 'fs';
+import path from 'path';
+import { randomUUID } from 'crypto';
+import { mkdir, writeFile, rm } from 'fs/promises';
+import { addJob, queueEvents, validateJobResult } from '~/queue';
 
 export function registerVideoRoutes(app: OpenAPIHono) {
   app.openapi(videoToMp4Route, async (c) => {
@@ -54,6 +60,7 @@ export function registerVideoRoutes(app: OpenAPIHono) {
       const { file } = c.req.valid('form');
       const query = c.req.valid('query');
       const mono = query.mono === 'yes';
+      const duration = query.duration;
 
       const result = await processMediaJob({
         file,
@@ -62,7 +69,8 @@ export function registerVideoRoutes(app: OpenAPIHono) {
         jobData: ({ inputPath, outputPath }) => ({
           inputPath,
           outputPath,
-          mono
+          mono,
+          ...(duration && { duration })
         })
       });
 
@@ -90,6 +98,7 @@ export function registerVideoRoutes(app: OpenAPIHono) {
       const query = c.req.valid('query');
       const fps = query.fps || 1;
       const compress = query.compress;
+      const duration = query.duration;
 
       if (!compress) {
         return c.json(
@@ -112,7 +121,8 @@ export function registerVideoRoutes(app: OpenAPIHono) {
           outputDir: `${jobDir}/frames`,
           fps,
           format: 'png',
-          compress
+          compress,
+          ...(duration && { duration })
         })
       });
 
@@ -181,6 +191,7 @@ export function registerVideoRoutes(app: OpenAPIHono) {
       const { file } = c.req.valid('form');
       const query = c.req.valid('query');
       const mono = query.mono === 'yes';
+      const duration = query.duration;
 
       const result = await processMediaJob({
         file,
@@ -190,7 +201,8 @@ export function registerVideoRoutes(app: OpenAPIHono) {
           inputPath,
           outputPath,
           mono,
-          uploadToS3: true
+          uploadToS3: true,
+          ...(duration && { duration })
         })
       });
 
@@ -219,6 +231,7 @@ export function registerVideoRoutes(app: OpenAPIHono) {
       const query = c.req.valid('query');
       const fps = query.fps || 1;
       const compress = query.compress;
+      const duration = query.duration;
 
       if (!compress) {
         return c.json(
@@ -242,7 +255,8 @@ export function registerVideoRoutes(app: OpenAPIHono) {
           fps,
           format: 'png',
           compress,
-          uploadToS3: true
+          uploadToS3: true,
+          ...(duration && { duration })
         })
       });
 
@@ -336,6 +350,91 @@ export function registerVideoRoutes(app: OpenAPIHono) {
       }
 
       return c.json({ url: result.outputUrl }, 200);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return c.json({ error: 'Processing failed', message: errorMessage }, 500);
+    }
+  });
+
+  app.openapi(processVideoRoute, async (c) => {
+    try {
+      const { file } = c.req.valid('form');
+      const query = c.req.valid('query');
+      const fps = query.fps || 2;
+      const duration = query.duration;
+
+      // Write input file once, shared by both jobs
+      const jobId = randomUUID();
+      const jobDir = path.join(env.TEMP_DIR, `process-${jobId}`);
+      const inputPath = path.join(jobDir, 'input');
+      const audioOutputPath = path.join(jobDir, 'audio.wav');
+      const framesOutputDir = path.join(jobDir, 'frames');
+
+      await mkdir(jobDir, { recursive: true });
+      const inputBuffer = Buffer.from(await file.arrayBuffer());
+      await writeFile(inputPath, inputBuffer);
+
+      // Run audio and frame extraction in parallel
+      const [audioJob, framesJob] = await Promise.all([
+        addJob(JobType.VIDEO_EXTRACT_AUDIO, {
+          inputPath,
+          outputPath: audioOutputPath,
+          mono: true,
+          ...(duration && { duration })
+        }),
+        addJob(JobType.VIDEO_EXTRACT_FRAMES, {
+          inputPath,
+          outputDir: framesOutputDir,
+          fps,
+          format: 'png',
+          ...(duration && { duration })
+        })
+      ]);
+
+      const [audioRawResult, framesRawResult] = await Promise.all([
+        audioJob.waitUntilFinished(queueEvents),
+        framesJob.waitUntilFinished(queueEvents)
+      ]);
+
+      const audioResult = validateJobResult(audioRawResult);
+      const framesResult = validateJobResult(framesRawResult);
+
+      // Read audio as base64
+      let audioBase64 = '';
+      let hasAudio = false;
+      if (audioResult.success && audioResult.outputPath) {
+        audioBase64 = readFileSync(audioResult.outputPath).toString('base64');
+        hasAudio = true;
+      }
+
+      // Read frames as base64 array
+      const frames: string[] = [];
+      if (framesResult.success) {
+        const frameFiles = readdirSync(framesOutputDir)
+          .filter((f) => f.endsWith('.png'))
+          .sort();
+        for (const frameFile of frameFiles) {
+          const framePath = path.join(framesOutputDir, frameFile);
+          frames.push(readFileSync(framePath).toString('base64'));
+        }
+      }
+
+      // Cleanup temp files
+      await rm(jobDir, { recursive: true, force: true });
+
+      if (!framesResult.success && !audioResult.success) {
+        return c.json({ error: audioResult.error || framesResult.error || 'Processing failed' }, 400);
+      }
+
+      return c.json(
+        {
+          audioBase64,
+          frames,
+          hasAudio,
+          frameCount: frames.length
+        },
+        200
+      );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       return c.json({ error: 'Processing failed', message: errorMessage }, 500);

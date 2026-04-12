@@ -123,7 +123,7 @@ export async function processVideoToMp4(job: Job<VideoToMp4JobData>): Promise<Jo
 }
 
 export async function processVideoExtractAudio(job: Job<VideoExtractAudioJobData>): Promise<JobResult> {
-  const { inputPath, outputPath, mono } = job.data;
+  const { inputPath, outputPath, mono, duration } = job.data;
 
   if (!existsSync(inputPath)) {
     return {
@@ -136,7 +136,13 @@ export async function processVideoExtractAudio(job: Job<VideoExtractAudioJobData
     const outputDir = dirname(outputPath);
     await mkdir(outputDir, { recursive: true });
 
-    const args = ['-i', inputPath, '-vn', '-acodec', 'pcm_s16le', '-ar', '44100'];
+    const args: string[] = [];
+
+    if (duration) {
+      args.push('-ss', '0', '-t', duration.toString());
+    }
+
+    args.push('-i', inputPath, '-vn', '-acodec', 'pcm_s16le', '-ar', '16000');
 
     if (mono) {
       args.push('-ac', '1');
@@ -169,7 +175,7 @@ export async function processVideoExtractAudio(job: Job<VideoExtractAudioJobData
 }
 
 export async function processVideoExtractFrames(job: Job<VideoExtractFramesJobData>): Promise<JobResult> {
-  const { inputPath, outputDir, fps, format, quality, compress } = job.data;
+  const { inputPath, outputDir, fps, format, quality, compress, duration } = job.data;
 
   if (!existsSync(inputPath)) {
     return {
@@ -184,7 +190,13 @@ export async function processVideoExtractFrames(job: Job<VideoExtractFramesJobDa
     const ext = format === 'jpg' ? 'jpg' : 'png';
     const outputPattern = path.join(outputDir, `frame_%04d.${ext}`);
 
-    const args = ['-i', inputPath, '-vf', `fps=${fps}`];
+    const args: string[] = [];
+
+    if (duration) {
+      args.push('-ss', '0', '-t', duration.toString());
+    }
+
+    args.push('-i', inputPath, '-vf', `fps=${fps}`);
 
     if (format === 'jpg' && quality) {
       args.push('-q:v', quality.toString());

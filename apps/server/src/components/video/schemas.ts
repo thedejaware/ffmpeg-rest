@@ -3,12 +3,30 @@ import {
   FileSchema,
   ErrorSchema,
   MonoQuerySchema,
+  DurationQuerySchema,
   FpsQuerySchema,
   CompressQuerySchema,
   FilenameParamSchema,
   DeleteQuerySchema,
   UrlResponseSchema
 } from '~/utils/schemas';
+
+export const ProcessVideoResponseSchema = z
+  .object({
+    audioBase64: z.string().openapi({
+      description: 'WAV audio extracted from the video, encoded as base64'
+    }),
+    frames: z.array(z.string()).openapi({
+      description: 'Array of PNG frame images encoded as base64'
+    }),
+    hasAudio: z.boolean().openapi({
+      description: 'Whether the video contained an audio track'
+    }),
+    frameCount: z.number().openapi({
+      description: 'Number of frames extracted'
+    })
+  })
+  .openapi('ProcessVideoResponse');
 
 /**
  * POST /video/mp4 - Convert any video format to MP4
@@ -130,7 +148,7 @@ export const extractAudioRoute = createRoute({
   tags: ['Video'],
   request: {
     params: z.object({}),
-    query: MonoQuerySchema,
+    query: MonoQuerySchema.merge(DurationQuerySchema),
     body: {
       content: {
         'multipart/form-data': {
@@ -188,7 +206,7 @@ export const extractAudioUrlRoute = createRoute({
   tags: ['Video'],
   request: {
     params: z.object({}),
-    query: MonoQuerySchema,
+    query: MonoQuerySchema.merge(DurationQuerySchema),
     body: {
       content: {
         'multipart/form-data': {
@@ -245,7 +263,7 @@ export const extractFramesRoute = createRoute({
   path: '/video/frames',
   tags: ['Video'],
   request: {
-    query: FpsQuerySchema.merge(CompressQuerySchema),
+    query: FpsQuerySchema.merge(CompressQuerySchema).merge(DurationQuerySchema),
     body: {
       content: {
         'multipart/form-data': {
@@ -305,7 +323,7 @@ export const extractFramesUrlRoute = createRoute({
   path: '/video/frames/url',
   tags: ['Video'],
   request: {
-    query: FpsQuerySchema.merge(CompressQuerySchema),
+    query: FpsQuerySchema.merge(CompressQuerySchema).merge(DurationQuerySchema),
     body: {
       content: {
         'multipart/form-data': {
@@ -397,6 +415,56 @@ export const downloadFrameRoute = createRoute({
         }
       },
       description: 'Not implemented'
+    }
+  }
+});
+
+/**
+ * POST /video/process - Combined audio + frame extraction
+ * Returns JSON with base64-encoded audio and frame images
+ * Query: duration (seconds), fps (frames per second)
+ */
+export const processVideoRoute = createRoute({
+  method: 'post',
+  path: '/video/process',
+  tags: ['Video'],
+  request: {
+    query: FpsQuerySchema.merge(DurationQuerySchema),
+    body: {
+      content: {
+        'multipart/form-data': {
+          schema: z.object({
+            file: FileSchema
+          })
+        }
+      },
+      required: true
+    }
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: ProcessVideoResponseSchema
+        }
+      },
+      description: 'Extracted audio and frames as base64 JSON'
+    },
+    400: {
+      content: {
+        'application/json': {
+          schema: ErrorSchema
+        }
+      },
+      description: 'Invalid video file or parameters'
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ErrorSchema
+        }
+      },
+      description: 'Processing failed'
     }
   }
 });

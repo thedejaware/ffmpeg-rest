@@ -27,6 +27,23 @@ export const MonoQuerySchema = z.object({
     })
 });
 
+export const DurationQuerySchema = z.object({
+  duration: z
+    .string()
+    .regex(/^\d+(\.\d+)?$/)
+    .transform(Number)
+    .pipe(z.number().positive().max(300))
+    .optional()
+    .openapi({
+      param: {
+        name: 'duration',
+        in: 'query'
+      },
+      example: '3',
+      description: 'Limit processing to first N seconds of the input'
+    })
+});
+
 export const CompressQuerySchema = z.object({
   compress: z
     .enum(['zip', 'gzip'])

@@ -68,7 +68,7 @@ export async function processAudioToWav(job: Job<AudioToWavJobData>): Promise<Jo
     const outputDir = dirname(outputPath);
     await mkdir(outputDir, { recursive: true });
 
-    await execFileAsync('ffmpeg', ['-i', inputPath, '-acodec', 'pcm_s16le', '-ar', '44100', '-y', outputPath], {
+    await execFileAsync('ffmpeg', ['-i', inputPath, '-acodec', 'pcm_s16le', '-ar', '16000', '-y', outputPath], {
       timeout: PROCESSING_TIMEOUT
     });
 

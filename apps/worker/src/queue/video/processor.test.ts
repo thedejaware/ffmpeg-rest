@@ -176,6 +176,13 @@ function createTestMp4File(outputPath: string): void {
   );
 }
 
+function createLongTestAviFile(outputPath: string, durationSec: number): void {
+  execSync(
+    `ffmpeg -f lavfi -i testsrc=duration=${durationSec}:size=320x240:rate=30 -f lavfi -i sine=frequency=1000:duration=${durationSec}:sample_rate=44100 -ac 2 -pix_fmt yuv420p -y "${outputPath}"`,
+    { stdio: 'pipe' }
+  );
+}
+
 describe('processVideoExtractFrames', () => {
   beforeEach(() => {
     if (!existsSync(TEST_DIR)) {
@@ -305,6 +312,58 @@ describe('processVideoExtractFrames', () => {
     expect(files.every((f) => f.endsWith('.jpg'))).toBe(true);
   });
 
+  it('should limit frame extraction to specified duration', async () => {
+    const inputPath = path.join(FIXTURES_DIR, 'test-video-frames-duration.avi');
+    const outputDir = path.join(TEST_DIR, 'frames-duration');
+
+    createLongTestAviFile(inputPath, 10);
+
+    const job = {
+      data: {
+        inputPath,
+        outputDir,
+        fps: 2,
+        format: 'png' as const,
+        duration: 3
+      }
+    } as Job<VideoExtractFramesJobData>;
+
+    const result = await processVideoExtractFrames(job);
+
+    expect(result.success).toBe(true);
+    expect(result.outputPaths).toBeDefined();
+
+    const files = readdirSync(outputDir).filter((f) => f.endsWith('.png'));
+    // 2 fps * 3 seconds = ~6 frames
+    expect(files.length).toBeGreaterThanOrEqual(5);
+    expect(files.length).toBeLessThanOrEqual(7);
+  });
+
+  it('should extract all frames when no duration is specified', async () => {
+    const inputPath = path.join(FIXTURES_DIR, 'test-video-frames-noduration.avi');
+    const outputDir = path.join(TEST_DIR, 'frames-noduration');
+
+    createLongTestAviFile(inputPath, 6);
+
+    const job = {
+      data: {
+        inputPath,
+        outputDir,
+        fps: 1,
+        format: 'png' as const
+      }
+    } as Job<VideoExtractFramesJobData>;
+
+    const result = await processVideoExtractFrames(job);
+
+    expect(result.success).toBe(true);
+    expect(result.outputPaths).toBeDefined();
+
+    const files = readdirSync(outputDir).filter((f) => f.endsWith('.png'));
+    // 1 fps * 6 seconds = ~6 frames (full video)
+    expect(files.length).toBeGreaterThanOrEqual(5);
+  });
+
   it('should return error when input file does not exist', async () => {
     const inputPath = path.join(FIXTURES_DIR, 'non-existent.avi');
     const outputDir = path.join(TEST_DIR, 'frames');
@@ -393,6 +452,82 @@ describe('processVideoExtractAudio', () => {
     const metadata = JSON.parse(fileInfo);
     expect(metadata.streams[0].channels).toBe(1);
     expect(metadata.streams[0].codec_name).toBe('pcm_s16le');
+  });
+
+  it('should use 16kHz sample rate for Whisper-optimal output', async () => {
+    const inputPath = path.join(FIXTURES_DIR, 'test-video-samplerate.avi');
+    const outputPath = path.join(TEST_DIR, 'audio-16k.wav');
+
+    createTestAviFile(inputPath);
+
+    const job = {
+      data: {
+        inputPath,
+        outputPath,
+        mono: true
+      }
+    } as Job<VideoExtractAudioJobData>;
+
+    const result = await processVideoExtractAudio(job);
+
+    expect(result.success).toBe(true);
+    expect(existsSync(outputPath)).toBe(true);
+
+    const fileInfo = execSync(`ffprobe -v error -show_streams -select_streams a -of json "${outputPath}"`).toString();
+    const metadata = JSON.parse(fileInfo);
+    expect(metadata.streams[0].sample_rate).toBe('16000');
+  });
+
+  it('should limit audio extraction to specified duration', async () => {
+    const inputPath = path.join(FIXTURES_DIR, 'test-video-duration.avi');
+    const outputPath = path.join(TEST_DIR, 'audio-limited.wav');
+
+    createLongTestAviFile(inputPath, 10);
+
+    const job = {
+      data: {
+        inputPath,
+        outputPath,
+        mono: true,
+        duration: 3
+      }
+    } as Job<VideoExtractAudioJobData>;
+
+    const result = await processVideoExtractAudio(job);
+
+    expect(result.success).toBe(true);
+    expect(existsSync(outputPath)).toBe(true);
+
+    const fileInfo = execSync(`ffprobe -v error -show_format -of json "${outputPath}"`).toString();
+    const metadata = JSON.parse(fileInfo);
+    const outputDuration = parseFloat(metadata.format.duration);
+    expect(outputDuration).toBeGreaterThanOrEqual(2.5);
+    expect(outputDuration).toBeLessThanOrEqual(3.5);
+  });
+
+  it('should extract full audio when no duration is specified', async () => {
+    const inputPath = path.join(FIXTURES_DIR, 'test-video-noduration.avi');
+    const outputPath = path.join(TEST_DIR, 'audio-full.wav');
+
+    createTestAviFile(inputPath);
+
+    const job = {
+      data: {
+        inputPath,
+        outputPath,
+        mono: true
+      }
+    } as Job<VideoExtractAudioJobData>;
+
+    const result = await processVideoExtractAudio(job);
+
+    expect(result.success).toBe(true);
+    expect(existsSync(outputPath)).toBe(true);
+
+    const fileInfo = execSync(`ffprobe -v error -show_format -of json "${outputPath}"`).toString();
+    const metadata = JSON.parse(fileInfo);
+    const outputDuration = parseFloat(metadata.format.duration);
+    expect(outputDuration).toBeGreaterThanOrEqual(1.5);
   });
 
   it('should preserve original channels when mono is false', async () => {
