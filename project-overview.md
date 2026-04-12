@@ -22,7 +22,6 @@ This backend solves both problems: the mobile app uploads a video, and gets back
 Monorepo (npm workspaces)
 ├── apps/server     Hono HTTP API — accepts uploads, enqueues jobs
 ├── apps/worker     BullMQ job processor — runs FFmpeg commands
-├── apps/web        Vite frontend with API docs (Scalar)
 └── packages/shared Zod schemas shared between server and worker
 ```
 

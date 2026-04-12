@@ -13,7 +13,6 @@ ENV HUSKY=0
 COPY package*.json ./
 COPY apps/server/package.json ./apps/server/package.json
 COPY apps/worker/package.json ./apps/worker/package.json
-COPY apps/web/package.json ./apps/web/package.json
 COPY packages/shared/package.json ./packages/shared/package.json
 COPY .husky/install.mjs ./.husky/install.mjs
 RUN npm ci --omit=dev
@@ -25,7 +24,6 @@ ENV HUSKY=0
 COPY package*.json ./
 COPY apps/server/package.json ./apps/server/package.json
 COPY apps/worker/package.json ./apps/worker/package.json
-COPY apps/web/package.json ./apps/web/package.json
 COPY packages/shared/package.json ./packages/shared/package.json
 COPY .husky/install.mjs ./.husky/install.mjs
 RUN npm ci

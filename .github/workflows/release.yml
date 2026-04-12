@@ -76,8 +76,6 @@ jobs:
             dockerfile: Dockerfile.server
           - image: ffmpeg-rest-worker
             dockerfile: Dockerfile.worker
-          - image: ffmpeg-rest-web
-            dockerfile: Dockerfile.web
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5

@@ -4,10 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "npm exec concurrently -- --kill-others --names \"web,server,worker\" --prefix \"[{name}]\" --prefix-colors \"cyan,blue,green\" \"npm run dev:web\" \"npm run dev:server\" \"npm run dev:worker\"",
+    "dev": "npm exec concurrently -- --kill-others --names \"server,worker\" --prefix \"[{name}]\" --prefix-colors \"blue,green\" \"npm run dev:server\" \"npm run dev:worker\"",
     "dev:server": "npm run dev -w @ffmpeg-rest/server",
     "dev:worker": "npm run dev -w @ffmpeg-rest/worker",
-    "dev:web": "npm run dev -w @ffmpeg-rest/web",
     "build": "npm run build:server && npm run build:worker",
     "build:server": "npm run build -w @ffmpeg-rest/server",
     "build:worker": "npm run build -w @ffmpeg-rest/worker",

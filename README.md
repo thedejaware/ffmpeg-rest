@@ -123,8 +123,7 @@ Every endpoint is fully documented with request/response schemas, validation rul
 
    ```bash
    cp .env.example .env
-   cp apps/web/.env.example apps/web/.env
-   # Edit both files with your settings
+   # Edit with your settings
    ```
 
 5. **Run the API**
@@ -132,7 +131,7 @@ Every endpoint is fully documented with request/response schemas, validation rul
    Development mode (with auto-reload):
 
    ```bash
-   # Starts web + server + worker
+   # Starts server + worker
    npm run dev
    ```
 
@@ -141,7 +140,6 @@ Every endpoint is fully documented with request/response schemas, validation rul
    ```bash
    npm run dev:server
    npm run dev:worker
-   npm run dev:web
    ```
 
    Production mode:
@@ -150,29 +148,6 @@ Every endpoint is fully documented with request/response schemas, validation rul
    npm run build
    npm start
    ```
-
-## Web App + Nitro Proxy
-
-The `apps/web` workspace is a Vite + TanStack Router frontend with a Nitro catch-all proxy for `/api/**`.
-
-- Dev server: `npm run dev:web`
-- Proxy route: `apps/web/routes/api/[...path].ts`
-- Frontend API client uses Hono RPC (`hc`) with shared `AppType` from the server
-
-Proxy behavior:
-
-- Requests to `/api/**` are forwarded to `BACKEND_URL` (required)
-- `Authorization: Bearer ${AUTH_TOKEN}` is injected server-side when `AUTH_TOKEN` is set
-- Browser clients do not need to store or submit `AUTH_TOKEN`
-- Web dev server runs on `http://localhost:5173` (fixed), API server defaults to `http://localhost:3000`
-
-Environment variables:
-
-```bash
-BACKEND_URL=http://localhost:3000
-AUTH_TOKEN=your-api-token
-WEB_PASSWORD=
-```
 
 ## Contribution Policy
 
