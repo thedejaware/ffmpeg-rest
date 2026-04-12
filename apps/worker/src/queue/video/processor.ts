@@ -196,7 +196,8 @@ export async function processVideoExtractFrames(job: Job<VideoExtractFramesJobDa
       args.push('-ss', '0', '-t', duration.toString());
     }
 
-    args.push('-i', inputPath, '-vf', `fps=${fps}`);
+    // Cap frame width at 1920px (maintains aspect ratio, rounds to even for codec compat)
+    args.push('-i', inputPath, '-vf', `fps=${fps},scale='min(1920\\,iw)':-2`);
 
     if (format === 'jpg' && quality) {
       args.push('-q:v', quality.toString());

@@ -390,7 +390,8 @@ export function registerVideoRoutes(app: OpenAPIHono) {
           inputPath,
           outputDir: framesOutputDir,
           fps,
-          format: 'png',
+          format: 'jpg',
+          quality: 2,
           ...(duration && { duration })
         })
       ]);
@@ -415,7 +416,7 @@ export function registerVideoRoutes(app: OpenAPIHono) {
       const frames: string[] = [];
       if (framesResult.success) {
         const frameFiles = readdirSync(framesOutputDir)
-          .filter((f) => f.endsWith('.png'))
+          .filter((f) => f.endsWith('.jpg'))
           .sort();
         for (const frameFile of frameFiles) {
           const framePath = path.join(framesOutputDir, frameFile);
