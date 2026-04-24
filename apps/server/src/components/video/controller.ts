@@ -19,6 +19,7 @@ import path from 'path';
 import { randomUUID } from 'crypto';
 import { mkdir, writeFile, rm } from 'fs/promises';
 import { addJob, queueEvents, validateJobResult } from '~/queue';
+import { resolveDurationSeconds, applyHybridKeep, plannedTimestamps } from './sampling';
 
 export function registerVideoRoutes(app: OpenAPIHono) {
   app.openapi(videoToMp4Route, async (c) => {
@@ -362,10 +363,19 @@ export function registerVideoRoutes(app: OpenAPIHono) {
     try {
       const { file } = c.req.valid('form');
       const query = c.req.valid('query');
-      const fps = query.fps || 2;
-      const duration = query.duration;
+      const fps = query.fps;
+      // Resolve the analysis window: `windowSeconds` (alias) wins, then
+      // `duration`, then default to 5s. Always pass the resolved value into
+      // the worker so audio + frames cover the same window.
+      const durationSeconds = resolveDurationSeconds({
+        duration: query.duration,
+        windowSeconds: query.windowSeconds
+      });
 
-      logger.info({ fileName: file.name, fileSize: file.size, fps, duration }, '[/video/process] Request received');
+      logger.info(
+        { fileName: file.name, fileSize: file.size, fps, durationSeconds },
+        '[/video/process] Request received'
+      );
 
       // Write input file once, shared by both jobs
       const jobId = randomUUID();
@@ -384,7 +394,7 @@ export function registerVideoRoutes(app: OpenAPIHono) {
           inputPath,
           outputPath: audioOutputPath,
           mono: true,
-          ...(duration && { duration })
+          duration: durationSeconds
         }),
         addJob(JobType.VIDEO_EXTRACT_FRAMES, {
           inputPath,
@@ -392,7 +402,7 @@ export function registerVideoRoutes(app: OpenAPIHono) {
           fps,
           format: 'jpg',
           quality: 2,
-          ...(duration && { duration })
+          duration: durationSeconds
         })
       ]);
 
@@ -412,8 +422,8 @@ export function registerVideoRoutes(app: OpenAPIHono) {
         hasAudio = true;
       }
 
-      // Read frames as base64 array
-      const frames: string[] = [];
+      // Read frames as base64 array (sorted lexicographically → chronological)
+      let frames: string[] = [];
       if (framesResult.success) {
         const frameFiles = readdirSync(framesOutputDir)
           .filter((f) => f.endsWith('.jpg'))
@@ -423,6 +433,12 @@ export function registerVideoRoutes(app: OpenAPIHono) {
           frames.push(readFileSync(framePath).toString('base64'));
         }
       }
+
+      // Apply hybrid sampling drop for the duration=5 + fps=2 preset. For
+      // every other (duration, fps) pair this is a no-op, preserving the
+      // legacy behavior for callers still passing `duration=3`.
+      frames = applyHybridKeep(frames, durationSeconds, fps);
+      const timestamps = plannedTimestamps(durationSeconds, fps).slice(0, frames.length);
 
       // Cleanup temp files
       await rm(jobDir, { recursive: true, force: true });
@@ -436,7 +452,15 @@ export function registerVideoRoutes(app: OpenAPIHono) {
       }
 
       logger.info(
-        { hasAudio, frameCount: frames.length, audioSize: audioBase64.length, elapsed: Date.now() - startTime },
+        {
+          hasAudio,
+          frameCount: frames.length,
+          timestamps,
+          audioSize: audioBase64.length,
+          durationSeconds,
+          fps,
+          elapsed: Date.now() - startTime
+        },
         '[/video/process] Response sent'
       );
 
@@ -444,6 +468,7 @@ export function registerVideoRoutes(app: OpenAPIHono) {
         {
           audioBase64,
           frames,
+          timestamps,
           hasAudio,
           frameCount: frames.length
         },

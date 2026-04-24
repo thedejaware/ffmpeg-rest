@@ -17,16 +17,64 @@ export const ProcessVideoResponseSchema = z
       description: 'WAV audio extracted from the video, encoded as base64'
     }),
     frames: z.array(z.string()).openapi({
-      description: 'Array of PNG frame images encoded as base64'
+      description: 'Array of JPG frame images encoded as base64, in chronological order'
+    }),
+    timestamps: z.array(z.number()).openapi({
+      description:
+        'Per-frame timestamps in seconds, parallel to `frames`. For the default 5s window with hybrid sampling this is [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0].'
     }),
     hasAudio: z.boolean().openapi({
       description: 'Whether the video contained an audio track'
     }),
     frameCount: z.number().openapi({
-      description: 'Number of frames extracted'
+      description: 'Number of frames extracted (same as timestamps.length)'
     })
   })
   .openapi('ProcessVideoResponse');
+
+/**
+ * Query schema for /video/process. Adds `windowSeconds` as a forward-compat
+ * alias for `duration` (paves the way for the future paid-tier window-size
+ * spinner). Both default to 5s when omitted, performed inside the handler so
+ * we can preserve the legacy "duration only when explicitly passed" semantics.
+ */
+export const ProcessVideoQuerySchema = z.object({
+  fps: z
+    .string()
+    .regex(/^\d+$/)
+    .transform(Number)
+    .pipe(z.number().int().positive())
+    .optional()
+    .default(2)
+    .openapi({
+      param: { name: 'fps', in: 'query' },
+      example: '2',
+      description: 'Frames per second sampled across the analysis window (default 2)'
+    }),
+  duration: z
+    .string()
+    .regex(/^\d+(\.\d+)?$/)
+    .transform(Number)
+    .pipe(z.number().positive().max(300))
+    .optional()
+    .openapi({
+      param: { name: 'duration', in: 'query' },
+      example: '5',
+      description:
+        'Length of the analysis window in seconds. Defaults to 5. Pass `duration=3` to preserve the legacy 6-frame uniform sampling.'
+    }),
+  windowSeconds: z
+    .string()
+    .regex(/^\d+(\.\d+)?$/)
+    .transform(Number)
+    .pipe(z.number().positive().max(300))
+    .optional()
+    .openapi({
+      param: { name: 'windowSeconds', in: 'query' },
+      example: '5',
+      description: 'Alias for `duration`. Wins over `duration` when both are provided.'
+    })
+});
 
 /**
  * POST /video/mp4 - Convert any video format to MP4
@@ -429,7 +477,7 @@ export const processVideoRoute = createRoute({
   path: '/video/process',
   tags: ['Video'],
   request: {
-    query: FpsQuerySchema.merge(DurationQuerySchema),
+    query: ProcessVideoQuerySchema,
     body: {
       content: {
         'multipart/form-data': {
